@@ -18,7 +18,6 @@ class FrontendExtensionTests(unittest.TestCase):
         statements = parse("float price = 2.5;")
         self.assertEqual(len(statements), 1)
 
-    
     def test_assignment(self):
         statements = parse("let x = 1; x = x + 2;")
         self.assertEqual(len(statements), 2)
