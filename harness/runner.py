@@ -35,3 +35,7 @@ class BenchmarkHarness:
                 "success": False,
                 "error": "Execution timed out."
             }
+    def evaluate(source_path: str, command: str) -> dict:
+        """Convenience wrapper for BenchmarkHarness."""
+        harness = BenchmarkHarness(source_path=source_path)
+        return harness.measure_execution(command)    
