@@ -68,12 +68,16 @@ def detect_opportunities(code: list[str]) -> list[dict]:
             else:
                 seen_expressions[expression] = index
 
-        # Copy propagation candidates.
-        if re.fullmatch(r"\w+\s*=\s*\w+", text):
-            left, right = [
-                part.strip() for part in text.split("=", 1)
-            ]
-            if left != right and not right.startswith(("t", "L")):
+        # Copy propagation candidates: x = y, where y is a variable.
+        copy_match = re.fullmatch(
+            r"([A-Za-z_]\w*)\s*=\s*([A-Za-z_]\w*)",
+            text
+        )
+
+        if copy_match:
+            left, right = copy_match.groups()
+
+            if left != right:
                 opportunities.append({
                     "type": "copy_propagation",
                     "line": index,
@@ -84,5 +88,4 @@ def detect_opportunities(code: list[str]) -> list[dict]:
                         "where it remains valid."
                     )
                 })
-
     return opportunities

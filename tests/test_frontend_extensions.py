@@ -18,6 +18,7 @@ class FrontendExtensionTests(unittest.TestCase):
         statements = parse("float price = 2.5;")
         self.assertEqual(len(statements), 1)
 
+    
     def test_assignment(self):
         statements = parse("let x = 1; x = x + 2;")
         self.assertEqual(len(statements), 2)
@@ -63,6 +64,31 @@ class FrontendExtensionTests(unittest.TestCase):
         self.assertIn("original_tac", result)
         self.assertIn("optimized_tac", result)
 
+    def test_constant_propagation_does_not_cross_branch_merge(self):
+        source = (
+            "int x = 5; "
+            "if (x > 3) { x = 10; } "
+            "else { x = 20; } "
+            "print x;"
+        )
+
+        result = compile_source(source)
+
+            # The conservative optimizer must not replace the final
+            # variable read with the value assigned in the else branch.
+        self.assertEqual(
+            result["optimized_tac"][-1],
+            "print x"
+        )
+
+    def test_constant_propagation_does_not_cross_loop(self):
+        source = (
+            "int x = 5; "
+            "while (x > 0) { x = x - 1; } "
+            "print x;"
+        )
+        result = compile_source(source)
+        self.assertEqual(result["optimized_tac"][-1], "print x")
 
 if __name__ == "__main__":
     unittest.main()

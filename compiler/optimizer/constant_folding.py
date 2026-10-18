@@ -9,7 +9,7 @@ _ASSIGN = re.compile(r"^(\w+)\s*=\s*(.+)$")
 
 _BINARY = re.compile(
     r"^(-?\d+(?:\.\d+)?)\s*"
-    r"([+\-*/%])\s*"
+    r"(==|!=|<=|>=|[+\-*/%<>])\s*"
     r"(-?\d+(?:\.\d+)?)$"
 )
 
@@ -19,14 +19,18 @@ _OPERATORS = {
     "*": operator.mul,
     "/": operator.truediv,
     "%": operator.mod,
+    "==": operator.eq,
+    "!=": operator.ne,
+    "<": operator.lt,
+    ">": operator.gt,
+    "<=": operator.le,
+    ">=": operator.ge,
 }
-
 
 def _format_number(value):
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
-
 
 def _fold_expression(expression):
     match = _BINARY.fullmatch(expression.strip())
@@ -35,6 +39,7 @@ def _fold_expression(expression):
         return expression
 
     left, op, right = match.groups()
+
     a = float(left) if "." in left else int(left)
     b = float(right) if "." in right else int(right)
 
@@ -46,8 +51,11 @@ def _fold_expression(expression):
     except (ArithmeticError, OverflowError):
         return expression
 
-    return _format_number(result)
+    # Represent Boolean results as 1 and 0 in TAC.
+    if isinstance(result, bool):
+        return "1" if result else "0"
 
+    return _format_number(result)
 
 def optimize(code: list[str]) -> list[str]:
     """Fold literal arithmetic expressions in TAC."""
@@ -80,18 +88,25 @@ def optimize(code: list[str]) -> list[str]:
 
 
 def constant_propagation(code: list[str]) -> list[str]:
-    """Substitute known literal assignments into later TAC lines."""
+    """Conservative constant propagation across control-flow boundaries."""
     constants = {}
     output = []
 
     for line in code:
         stripped = line.strip()
 
-        if not stripped or stripped.endswith(":"):
+        if not stripped:
             output.append(line)
             continue
 
-        # Do not propagate across control-flow boundaries.
+        # A label may be reached from multiple paths.
+        # Never carry constants across a control-flow merge.
+        if stripped.endswith(":"):
+            constants.clear()
+            output.append(line)
+            continue
+
+        # A jump can change which instructions execute next.
         if stripped.startswith(("goto ", "if ", "ifFalse ")):
             output.append(line)
             constants.clear()
@@ -110,6 +125,7 @@ def constant_propagation(code: list[str]) -> list[str]:
 
         target, expression = match.groups()
 
+        # Substitute known constants into this expression.
         for name, value in constants.items():
             expression = re.sub(
                 rf"\b{re.escape(name)}\b",
@@ -120,6 +136,7 @@ def constant_propagation(code: list[str]) -> list[str]:
         expression = _fold_expression(expression)
         output.append(f"{target} = {expression}")
 
+        # Keep a constant only if the complete RHS is a literal.
         if re.fullmatch(r"-?\d+(?:\.\d+)?", expression):
             constants[target] = expression
         else:
