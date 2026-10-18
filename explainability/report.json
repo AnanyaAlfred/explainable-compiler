@@ -1,0 +1,10 @@
+[
+    {
+        "pass_name": "Constant Folding",
+        "what": "Folded arithmetic addition '10 + 20' into static value '30'.",
+        "where": "Line 2, Block 0",
+        "why": "Eliminate unnecessary runtime arithmetic overhead.",
+        "how": "AST static visitor evaluation.",
+        "effect": "Reduced instruction count by 1."
+    }
+]
