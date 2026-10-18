@@ -1,4 +1,5 @@
-"""Starter optimization passes."""
-from .constant_folding import optimize
+"""Public optimization interfaces."""
 
-__all__ = ["optimize"]
+from .constant_folding import optimize, constant_propagation
+
+__all__ = ["optimize", "constant_propagation"]
