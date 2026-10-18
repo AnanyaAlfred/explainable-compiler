@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.coverage
+.pytest_cache/
+.explainability/
+explainability/*.jsonl
+web-ui/node_modules/
+web-ui/dist/
+.DS_Store
+.idea/
+.vscode/

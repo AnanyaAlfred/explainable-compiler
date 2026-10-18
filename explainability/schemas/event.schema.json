@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExplainabilityEvent",
+  "description": "Schema capturing the 5-question framework (WHAT, WHERE, WHY, HOW, EFFECT) for compiler transformations.",
+  "type": "object",
+  "properties": {
+    "pass_name": { "type": "string" },
+    "what": { "type": "string", "description": "What transformation or optimization occurred." },
+    "where": { "type": "string", "description": "Line number or block identifier where it took place." },
+    "why": { "type": "string", "description": "The condition or optimization rule that justified it." },
+    "how": { "type": "string", "description": "The mechanism or algorithm applied." },
+    "effect": { "type": "string", "description": "The resulting improvement (e.g., instructions eliminated)." }
+  },
+  "required": ["pass_name", "what", "where", "why", "how", "effect"]
+}

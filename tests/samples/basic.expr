@@ -1,0 +1,1 @@
+let answer = 6 * 7;\nprint answer;\n
