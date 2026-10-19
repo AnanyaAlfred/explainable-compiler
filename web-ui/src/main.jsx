@@ -50,6 +50,185 @@ function ResultPanel({ title, children }) {
   );
 }
 
+const OPPORTUNITY_LABELS = {
+  division_by_zero: "Division or remainder by zero",
+  constant_folding: "Constant expression",
+  algebraic_simplification: "Simplifiable arithmetic",
+  common_subexpression: "Repeated expression",
+  strength_reduction: "Multiplication that may be simplified",
+  copy_propagation: "Variable copy",
+};
+
+function formatLabel(value) {
+  return String(value || "Unknown")
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function JsonDetails({ value }) {
+  return (
+    <details className="raw-json">
+      <summary>View raw JSON</summary>
+      <pre>{JSON.stringify(value, null, 2)}</pre>
+    </details>
+  );
+}
+
+function OptimizationOpportunities({ opportunities }) {
+  const items = Array.isArray(opportunities) ? opportunities : [];
+
+  return (
+    <>
+      <p className="muted section-description">
+        Suggestions found by scanning the original instructions. These are
+        opportunities to review, not guaranteed changes.
+      </p>
+      <p className="summary-count">
+        {items.length === 0
+          ? "No optimization opportunities found."
+          : `${items.length} ${
+              items.length === 1 ? "opportunity" : "opportunities"
+            } found`}
+      </p>
+      {items.length > 0 && (
+        <div className="opportunity-list">
+          {items.map((item, index) => (
+            <article className="opportunity-card" key={`${item.type}-${item.line}-${index}`}>
+              <div className="card-heading">
+                <h3>{OPPORTUNITY_LABELS[item.type] || formatLabel(item.type)}</h3>
+                <span className="line-badge">
+                  TAC line {Number.isInteger(item.line) ? item.line + 1 : "—"}
+                </span>
+              </div>
+              {item.instruction && (
+                <pre className="inline-code">{item.instruction}</pre>
+              )}
+              {item.why && (
+                <p><strong>Why it matters:</strong> {item.why}</p>
+              )}
+              {item.suggestion && (
+                <p><strong>Suggested action:</strong> {item.suggestion}</p>
+              )}
+              {Number.isInteger(item.previous_line) && (
+                <p className="muted">
+                  Matching expression first appeared on TAC line{" "}
+                  {item.previous_line + 1}.
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+      <JsonDetails value={opportunities} />
+    </>
+  );
+}
+
+function PassExecutionHistory({ history }) {
+  const passes = Array.isArray(history) ? history : [];
+
+  return (
+    <>
+      <p className="muted section-description">
+        Each pass transforms the instruction list produced by the previous
+        step. Expand a pass to compare its input and output.
+      </p>
+      {passes.length === 0 ? (
+        <p className="empty-state">No pass execution details are available.</p>
+      ) : (
+        <div className="pass-list">
+          {passes.map((pass, index) => {
+            const before = Array.isArray(pass.before) ? pass.before : [];
+            const after = Array.isArray(pass.after) ? pass.after : [];
+            const changed = JSON.stringify(before) !== JSON.stringify(after);
+            const difference = before.length - after.length;
+            const resultLabel = changed
+              ? difference > 0
+                ? `${difference} ${difference === 1 ? "instruction" : "instructions"} removed`
+                : difference < 0
+                  ? `${Math.abs(difference)} ${Math.abs(difference) === 1 ? "instruction" : "instructions"} added`
+                  : "Instructions changed"
+              : "No changes";
+
+            return (
+              <details className="pass-card" key={`${pass.pass_name}-${index}`}>
+                <summary>
+                  <span className="pass-name">
+                    <span className="step-number">{index + 1}</span>
+                    {formatLabel(pass.pass_name)}
+                  </span>
+                  <span className={`pass-result ${changed ? "changed" : ""}`}>
+                    {resultLabel}
+                  </span>
+                </summary>
+                <div className="pass-comparison">
+                  <div>
+                    <h4>Before <span>{before.length} {before.length === 1 ? "instruction" : "instructions"}</span></h4>
+                    <pre>{before.join("\n") || "(No instructions)"}</pre>
+                  </div>
+                  <div>
+                    <h4>After <span>{after.length} {after.length === 1 ? "instruction" : "instructions"}</span></h4>
+                    <pre>{after.join("\n") || "(No instructions)"}</pre>
+                  </div>
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      )}
+      <JsonDetails value={history} />
+    </>
+  );
+}
+
+function BasicBlocks({ blocks }) {
+  const items = Array.isArray(blocks) ? blocks : [];
+
+  return (
+    <>
+      <p className="muted section-description">
+        Basic blocks are straight-line groups of instructions with one entry
+        point. TAC line numbers below start at 1.
+      </p>
+      {items.length === 0 ? (
+        <p className="empty-state">No basic blocks were generated.</p>
+      ) : (
+        <div className="block-grid">
+          {items.map((block, index) => {
+            const instructions = Array.isArray(block.instructions)
+              ? block.instructions
+              : [];
+            const firstLine = Number.isInteger(block.start) ? block.start + 1 : null;
+            const lastLine = Number.isInteger(block.end)
+              ? block.end
+              : firstLine === null
+                ? null
+                : firstLine + instructions.length - 1;
+
+            return (
+              <article className="basic-block-card" key={block.id || index}>
+                <div className="card-heading">
+                  <h3>{block.id || `Block ${index + 1}`}</h3>
+                  <span className="line-badge">
+                    {firstLine === null
+                      ? `${instructions.length} ${instructions.length === 1 ? "instruction" : "instructions"}`
+                      : firstLine === lastLine
+                        ? `TAC line ${firstLine}`
+                        : `TAC lines ${firstLine}–${lastLine}`}
+                  </span>
+                </div>
+                <pre>{instructions.join("\n") || "(No instructions)"}</pre>
+              </article>
+            );
+          })}
+        </div>
+      )}
+      <JsonDetails value={blocks} />
+    </>
+  );
+}
+
 function App() {
   const [source, setSource] = React.useState(DEFAULT_SOURCE);
   const [result, setResult] = React.useState(null);
@@ -134,11 +313,11 @@ function App() {
           </ResultPanel>
 
           <ResultPanel title="Optimization Opportunities">
-            <pre>{JSON.stringify(result.opportunities, null, 2)}</pre>
+            <OptimizationOpportunities opportunities={result.opportunities} />
           </ResultPanel>
 
           <ResultPanel title="Pass Execution History">
-            <pre>{JSON.stringify(result.pass_history, null, 2)}</pre>
+            <PassExecutionHistory history={result.pass_history} />
           </ResultPanel>
 
           <ResultPanel title="LICM Safety Report">
@@ -152,7 +331,7 @@ function App() {
           </ResultPanel>
 
           <ResultPanel title="Basic Blocks">
-            <pre>{JSON.stringify(result.basic_blocks, null, 2)}</pre>
+            <BasicBlocks blocks={result.basic_blocks} />
           </ResultPanel>
         </>
       )}
