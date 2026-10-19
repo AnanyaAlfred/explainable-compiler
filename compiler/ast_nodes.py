@@ -7,11 +7,13 @@ from typing import Union, Any
 @dataclass
 class Number:
     value: Union[int, float]
+    position: int | None = None
 
 
 @dataclass
 class Variable:
     name: str
+    position: int | None = None
 
 
 @dataclass
@@ -19,12 +21,14 @@ class BinaryOp:
     op: str
     left: "Expr"
     right: "Expr"
+    position: int | None = None
 
 
 @dataclass
 class UnaryOp:
     op: str
     operand: "Expr"
+    position: int | None = None
 
 
 @dataclass

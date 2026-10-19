@@ -192,62 +192,76 @@ class Parser:
     def logical_or(self):
         node = self.logical_and()
         while self.check("||"):
-            op = self.consume().value
-            node = BinaryOp(op, node, self.logical_and())
+            operator_token = self.consume()
+            op = operator_token.value
+            node = BinaryOp(op, node, self.logical_and(),position=operator_token.position)
         return node
 
     def logical_and(self):
         node = self.equality()
         while self.check("&&"):
-            op = self.consume().value
-            node = BinaryOp(op, node, self.equality())
+            operator_token = self.consume()
+            op = operator_token.value
+            node = BinaryOp(op, node, self.equality(),position=operator_token.position)
         return node
 
     def equality(self):
         node = self.comparison()
         while self.current().value in {"==", "!="}:
-            op = self.consume().value
-            node = BinaryOp(op, node, self.comparison())
+            operator_token = self.consume()
+            op = operator_token.value
+            node = BinaryOp(op, node, self.comparison(),position=operator_token.position)
         return node
 
     def comparison(self):
         node = self.additive()
         while self.current().value in {"<", ">", "<=", ">="}:
-            op = self.consume().value
-            node = BinaryOp(op, node, self.additive())
+            operator_token = self.consume()
+            op = operator_token.value
+            node = BinaryOp(op, node, self.additive(),position=operator_token.position)
         return node
 
     def additive(self):
         node = self.term()
         while self.current().value in {"+", "-"}:
-            op = self.consume().value
-            node = BinaryOp(op, node, self.term())
+            operator_token = self.consume()
+            op = operator_token.value
+            node = BinaryOp(op, node, self.term(),position=operator_token.position)
         return node
 
     def term(self):
         node = self.unary()
         while self.current().value in {"*", "/", "%"}:
-            op = self.consume().value
-            node = BinaryOp(op, node, self.unary())
+            operator_token = self.consume()
+            op = operator_token.value
+            node = BinaryOp(op, node, self.unary(),position=operator_token.position)
         return node
 
     def unary(self):
         if self.current().value in {"-", "!"}:
-            op = self.consume().value
-            return UnaryOp(op, self.unary())
+            operator_token = self.consume()
+            return UnaryOp(
+                operator_token.value,
+                self.unary(),
+                position=operator_token.position
+            )
         return self.factor()
+
 
     def factor(self):
         token = self.current()
 
         if token.kind == "INT":
-            return Number(int(self.consume(kind="INT").value))
+            token = self.consume(kind="INT")
+            return Number(int(token.value), position=token.position)
 
         if token.kind == "FLOAT":
-            return Number(float(self.consume(kind="FLOAT").value))
+            token = self.consume(kind="FLOAT")
+            return Number(float(token.value), position=token.position)
 
         if token.kind == "IDENT":
-            return Variable(self.consume(kind="IDENT").value)
+            token = self.consume(kind="IDENT")
+            return Variable(token.value, position=token.position)
 
         if self.check("("):
             self.consume("(")

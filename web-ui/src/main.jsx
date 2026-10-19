@@ -141,6 +141,12 @@ function App() {
             <pre>{JSON.stringify(result.pass_history, null, 2)}</pre>
           </ResultPanel>
 
+          <ResultPanel title="LICM Safety Report">
+            <pre>
+              {JSON.stringify(result.licm_safety ?? [], null, 2)}
+            </pre>
+          </ResultPanel>
+
           <ResultPanel title="Optimized Three-Address Code">
             <pre>{result.optimized_tac.join("\n") || "(No instructions)"}</pre>
           </ResultPanel>

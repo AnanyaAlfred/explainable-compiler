@@ -6,22 +6,26 @@ from .parser import parse
 from .ast_nodes import ast_to_json
 from .tac_generator import generate
 from .optimizer.pass_driver import run_initial_passes
+from .diagnostics import analyze_diagnostics
 
 
 def compile_source(source: str) -> dict:
     """Compile source text and return structured compilation results."""
     statements = parse(source)
+    diagnostics = analyze_diagnostics(statements, source)
     original_tac = generate(statements)
     optimization = run_initial_passes(original_tac)
 
     return {
         "source": source,
         "ast": ast_to_json(statements),
+        "diagnostics": diagnostics,
         "original_tac": original_tac,
         "opportunities": optimization["opportunities"],
         "pass_history": optimization["pass_history"],
         "optimized_tac": optimization["optimized_tac"],
-        "basic_blocks": optimization["basic_blocks"]
+        "basic_blocks": optimization["basic_blocks"],
+        "licm_safety": optimization["licm_safety"]
     }
 
 

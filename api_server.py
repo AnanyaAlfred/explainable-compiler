@@ -2,6 +2,7 @@
 """Minimal HTTP API for the Explainable Compiler frontend."""
 
 import json
+import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from compiler.pipeline import compile_source
@@ -46,7 +47,10 @@ class CompilerHandler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, UnicodeDecodeError):
             self.send_json(400, {"error": "Invalid JSON request."})
         except Exception as exc:
-            self.send_json(400, {"error": str(exc)})
+            traceback.print_exc()
+            self.send_json(500, {
+                "error": f"{type(exc).__name__}: {repr(exc)}"
+            })
 
     def log_message(self, format, *args):
         print("[API]", format % args)
