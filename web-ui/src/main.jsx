@@ -7,43 +7,77 @@ const DEFAULT_SOURCE = `int x = 2 + 3 * 4;
 print x;`;
 
 function ASTNode({ name, value }) {
+  if (value === null || value === undefined) return null;
+
   if (Array.isArray(value)) {
+    return value.map((item, index) => (
+      <ASTNode
+        key={`${name}-${index}`}
+        name={`${name}[${index}]`}
+        value={item}
+      />
+    ));
+  }
+
+  if (typeof value !== "object") {
     return (
-      <div className="ast-children">
-        {value.map((item, index) => (
-          <ASTNode key={`${name}-${index}`} name={`${name}[${index}]`} value={item} />
-        ))}
-      </div>
+      <span className="ast-attribute">
+        <span className="ast-attribute-key">{name}</span>
+        <strong>{String(value)}</strong>
+      </span>
     );
   }
 
-  if (value && typeof value === "object") {
-    return (
-      <div className="ast-node">
-        <div className="ast-node-title">
-          <span className="ast-type">{value.node_type || "Object"}</span>
-          <span className="ast-name">{name}</span>
-        </div>
-        {Object.entries(value)
-          .filter(([key]) => key !== "node_type")
-          .map(([key, child]) => (
-            <ASTNode key={key} name={key} value={child} />
-          ))}
-      </div>
-    );
-  }
+  const entries = Object.entries(value).filter(
+    ([key]) => key !== "node_type"
+  );
+
+  const children = entries.filter(
+    ([, child]) => child !== null && typeof child === "object"
+  );
+
+  const attributes = entries.filter(
+    ([, child]) => child === null || typeof child !== "object"
+  );
 
   return (
-    <div className="ast-leaf">
-      <span className="ast-name">{name}</span>
-      <span className="ast-value">{String(value)}</span>
-    </div>
+    <li className="ast-tree-node">
+      <div className="ast-node">
+        <div className="ast-node-title">
+          <span className="ast-type">
+            {value.node_type || "Object"}
+          </span>
+          {name !== "root" && (
+            <span className="ast-name">{name}</span>
+          )}
+        </div>
+
+        {attributes.length > 0 && (
+          <div className="ast-attributes">
+            {attributes.map(([key, child]) => (
+              <span className="ast-attribute" key={key}>
+                <span className="ast-attribute-key">{key}</span>
+                <strong>{String(child)}</strong>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {children.length > 0 && (
+        <ul className="ast-tree-list">
+          {children.map(([key, child]) => (
+            <ASTNode key={key} name={key} value={child} />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 
-function ResultPanel({ title, children }) {
+function ResultPanel({ title, children, className = "" }) {
   return (
-    <section className="panel">
+    <section className={`panel ${className}`.trim()}>
       <h2>{title}</h2>
       {children}
     </section>
@@ -84,6 +118,7 @@ function OptimizationOpportunities({ opportunities }) {
         Suggestions found by scanning the original instructions. These are
         opportunities to review, not guaranteed changes.
       </p>
+
       <p className="summary-count">
         {items.length === 0
           ? "No optimization opportunities found."
@@ -91,25 +126,35 @@ function OptimizationOpportunities({ opportunities }) {
               items.length === 1 ? "opportunity" : "opportunities"
             } found`}
       </p>
+
       {items.length > 0 && (
         <div className="opportunity-list">
           {items.map((item, index) => (
-            <article className="opportunity-card" key={`${item.type}-${item.line}-${index}`}>
+            <article
+              className="opportunity-card"
+              key={`${item.type}-${item.line}-${index}`}
+            >
               <div className="card-heading">
-                <h3>{OPPORTUNITY_LABELS[item.type] || formatLabel(item.type)}</h3>
+                <h3>
+                  {OPPORTUNITY_LABELS[item.type] || formatLabel(item.type)}
+                </h3>
                 <span className="line-badge">
                   TAC line {Number.isInteger(item.line) ? item.line + 1 : "—"}
                 </span>
               </div>
+
               {item.instruction && (
                 <pre className="inline-code">{item.instruction}</pre>
               )}
+
               {item.why && (
                 <p><strong>Why it matters:</strong> {item.why}</p>
               )}
+
               {item.suggestion && (
                 <p><strong>Suggested action:</strong> {item.suggestion}</p>
               )}
+
               {Number.isInteger(item.previous_line) && (
                 <p className="muted">
                   Matching expression first appeared on TAC line{" "}
@@ -120,6 +165,7 @@ function OptimizationOpportunities({ opportunities }) {
           ))}
         </div>
       )}
+
       <JsonDetails value={opportunities} />
     </>
   );
@@ -134,25 +180,39 @@ function PassExecutionHistory({ history }) {
         Each pass transforms the instruction list produced by the previous
         step. Expand a pass to compare its input and output.
       </p>
+
       {passes.length === 0 ? (
-        <p className="empty-state">No pass execution details are available.</p>
+        <p className="empty-state">
+          No pass execution details are available.
+        </p>
       ) : (
         <div className="pass-list">
           {passes.map((pass, index) => {
             const before = Array.isArray(pass.before) ? pass.before : [];
             const after = Array.isArray(pass.after) ? pass.after : [];
-            const changed = JSON.stringify(before) !== JSON.stringify(after);
+            const changed =
+              JSON.stringify(before) !== JSON.stringify(after);
             const difference = before.length - after.length;
+
             const resultLabel = changed
               ? difference > 0
-                ? `${difference} ${difference === 1 ? "instruction" : "instructions"} removed`
+                ? `${difference} ${
+                    difference === 1 ? "instruction" : "instructions"
+                  } removed`
                 : difference < 0
-                  ? `${Math.abs(difference)} ${Math.abs(difference) === 1 ? "instruction" : "instructions"} added`
+                  ? `${Math.abs(difference)} ${
+                      Math.abs(difference) === 1
+                        ? "instruction"
+                        : "instructions"
+                    } added`
                   : "Instructions changed"
               : "No changes";
 
             return (
-              <details className="pass-card" key={`${pass.pass_name}-${index}`}>
+              <details
+                className="pass-card"
+                key={`${pass.pass_name}-${index}`}
+              >
                 <summary>
                   <span className="pass-name">
                     <span className="step-number">{index + 1}</span>
@@ -162,13 +222,27 @@ function PassExecutionHistory({ history }) {
                     {resultLabel}
                   </span>
                 </summary>
+
                 <div className="pass-comparison">
                   <div>
-                    <h4>Before <span>{before.length} {before.length === 1 ? "instruction" : "instructions"}</span></h4>
+                    <h4>
+                      Before
+                      <span>
+                        {before.length}{" "}
+                        {before.length === 1 ? "instruction" : "instructions"}
+                      </span>
+                    </h4>
                     <pre>{before.join("\n") || "(No instructions)"}</pre>
                   </div>
+
                   <div>
-                    <h4>After <span>{after.length} {after.length === 1 ? "instruction" : "instructions"}</span></h4>
+                    <h4>
+                      After
+                      <span>
+                        {after.length}{" "}
+                        {after.length === 1 ? "instruction" : "instructions"}
+                      </span>
+                    </h4>
                     <pre>{after.join("\n") || "(No instructions)"}</pre>
                   </div>
                 </div>
@@ -177,6 +251,7 @@ function PassExecutionHistory({ history }) {
           })}
         </div>
       )}
+
       <JsonDetails value={history} />
     </>
   );
@@ -191,6 +266,7 @@ function BasicBlocks({ blocks }) {
         Basic blocks are straight-line groups of instructions with one entry
         point. TAC line numbers below start at 1.
       </p>
+
       {items.length === 0 ? (
         <p className="empty-state">No basic blocks were generated.</p>
       ) : (
@@ -199,7 +275,11 @@ function BasicBlocks({ blocks }) {
             const instructions = Array.isArray(block.instructions)
               ? block.instructions
               : [];
-            const firstLine = Number.isInteger(block.start) ? block.start + 1 : null;
+
+            const firstLine = Number.isInteger(block.start)
+              ? block.start + 1
+              : null;
+
             const lastLine = Number.isInteger(block.end)
               ? block.end
               : firstLine === null
@@ -207,23 +287,32 @@ function BasicBlocks({ blocks }) {
                 : firstLine + instructions.length - 1;
 
             return (
-              <article className="basic-block-card" key={block.id || index}>
+              <article
+                className="basic-block-card"
+                key={block.id || index}
+              >
                 <div className="card-heading">
                   <h3>{block.id || `Block ${index + 1}`}</h3>
                   <span className="line-badge">
                     {firstLine === null
-                      ? `${instructions.length} ${instructions.length === 1 ? "instruction" : "instructions"}`
+                      ? `${instructions.length} ${
+                          instructions.length === 1
+                            ? "instruction"
+                            : "instructions"
+                        }`
                       : firstLine === lastLine
                         ? `TAC line ${firstLine}`
                         : `TAC lines ${firstLine}–${lastLine}`}
                   </span>
                 </div>
+
                 <pre>{instructions.join("\n") || "(No instructions)"}</pre>
               </article>
             );
           })}
         </div>
       )}
+
       <JsonDetails value={blocks} />
     </>
   );
@@ -235,6 +324,24 @@ function App() {
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [showJSON, setShowJSON] = React.useState(false);
+  const [astZoom, setAstZoom] = React.useState(100);
+  const [astViewportHeight, setAstViewportHeight] = React.useState(0);
+  const astTreeRef = React.useRef(null);
+
+  React.useLayoutEffect(() => {
+    if (!result || showJSON || astZoom !== 100 || !astTreeRef.current) {
+      return undefined;
+    }
+
+    const tree = astTreeRef.current;
+    const updateHeight = () => setAstViewportHeight(tree.offsetHeight);
+    const observer = new ResizeObserver(updateHeight);
+
+    updateHeight();
+    observer.observe(tree);
+
+    return () => observer.disconnect();
+  }, [result, showJSON, astZoom]);
 
   async function compile() {
     setLoading(true);
@@ -254,6 +361,7 @@ function App() {
         throw new Error(data.error || "Compilation failed.");
       }
 
+      setAstZoom(100);
       setResult(data);
     } catch (err) {
       setError(
@@ -292,24 +400,73 @@ function App() {
 
       {result && (
         <>
-          <ResultPanel title="Abstract Syntax Tree">
+          <ResultPanel title="Abstract Syntax Tree" className="ast-panel">
             <div className="panel-heading">
               <p className="muted">Generated from your source code</p>
-              <button onClick={() => setShowJSON(!showJSON)}>
-                {showJSON ? "Show tree" : "Show JSON"}
-              </button>
+              <div className="ast-panel-actions">
+                {!showJSON && (
+                  <div className="ast-zoom-controls" aria-label="AST zoom controls">
+                    <button
+                      type="button"
+                      onClick={() => setAstZoom((zoom) => Math.max(50, zoom - 10))}
+                      disabled={astZoom <= 50}
+                      aria-label="Zoom out"
+                      title="Zoom out"
+                    >
+                      −
+                    </button>
+                    <span aria-live="polite">{astZoom}%</span>
+                    <button
+                      type="button"
+                      onClick={() => setAstZoom((zoom) => Math.min(150, zoom + 10))}
+                      disabled={astZoom >= 150}
+                      aria-label="Zoom in"
+                      title="Zoom in"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAstZoom(100)}
+                      disabled={astZoom === 100}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                )}
+                <button onClick={() => setShowJSON(!showJSON)}>
+                  {showJSON ? "Show tree" : "Show JSON"}
+                </button>
+              </div>
             </div>
+
             {showJSON ? (
               <pre>{JSON.stringify(result.ast, null, 2)}</pre>
             ) : (
-              <div className="ast-tree">
-                <ASTNode name="root" value={result.ast} />
+              <div
+                className="ast-tree-scroll"
+                style={astViewportHeight ? { height: `${astViewportHeight}px` } : undefined}
+              >
+                <div
+                  className="ast-tree"
+                  ref={astTreeRef}
+                  style={{
+                    transform: `scale(${astZoom / 100})`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  <ul className="ast-tree-list ast-tree-root">
+                    <ASTNode name="root" value={result.ast} />
+                  </ul>
+                </div>
               </div>
             )}
           </ResultPanel>
 
           <ResultPanel title="Original Three-Address Code">
-            <pre>{result.original_tac.join("\n") || "(No instructions)"}</pre>
+            <pre>
+              {result.original_tac.join("\n") || "(No instructions)"}
+            </pre>
           </ResultPanel>
 
           <ResultPanel title="Optimization Opportunities">
@@ -327,7 +484,9 @@ function App() {
           </ResultPanel>
 
           <ResultPanel title="Optimized Three-Address Code">
-            <pre>{result.optimized_tac.join("\n") || "(No instructions)"}</pre>
+            <pre>
+              {result.optimized_tac.join("\n") || "(No instructions)"}
+            </pre>
           </ResultPanel>
 
           <ResultPanel title="Basic Blocks">
